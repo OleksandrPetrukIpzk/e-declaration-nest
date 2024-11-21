@@ -30,4 +30,9 @@ export class UserService {
         }
         return null;
     }
+    async getUsersCount(): Promise<number> {
+        const users = await this.usersRepository.count();
+        return users;
+
+    }
 }
