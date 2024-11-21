@@ -16,4 +16,8 @@ export class UserController {
     loginUser(@Body()createProfileDto: createProfileDto): Promise<User> {
         return this.userService.loginUser(createProfileDto)
     }
+    @Get('/count')
+    getUsersCount(): Promise<number> {
+        return this.userService.getUsersCount();
+    }
 }
