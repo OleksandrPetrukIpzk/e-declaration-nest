@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import {DocumentModule} from "./document/document.module";
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {UserModule} from "./user/user.module";
+import {JwtGlobalModule} from "./jwt/jwt.module";
 
 @Module({
   imports: [TypeOrmModule.forRoot({
@@ -16,7 +17,10 @@ import {UserModule} from "./user/user.module";
     entities: [__dirname + '/**/*.entity.{js,ts}'],
     migrations: [__dirname + '/migrations/*.ts'], // Шлях до папки міграцій
     synchronize: true,
-  }), UserModule, DocumentModule],
+  }),
+      JwtGlobalModule
+      ,
+    UserModule, DocumentModule],
   controllers: [AppController],
   providers: [AppService],
 })
