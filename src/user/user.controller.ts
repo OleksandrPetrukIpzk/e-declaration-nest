@@ -1,7 +1,9 @@
 import {UserService} from "./user.service";
-import {Body, Controller, Get, Post} from "@nestjs/common";
+import {Body, Controller, Get, Post, UseGuards} from "@nestjs/common";
 import {createProfileDto} from "./create-profile.dto";
 import {User} from "./user.entity";
+import {AuthGuard} from "@nestjs/passport";
+import {GetUserInfoDto} from "./dtos";
 
 @Controller('user')
 export class UserController {
@@ -19,5 +21,15 @@ export class UserController {
     @Get('/count')
     getUsersCount(): Promise<number> {
         return this.userService.getUsersCount();
+    }
+
+    @Post('/refresh')
+    async refresh(@Body() body: { refreshToken: string }) {
+        return this.userService.refreshToken(body.refreshToken);
+    }
+    @UseGuards(AuthGuard('jwt'))
+    @Post('/info')
+    async getUserInfo(@Body() getUserInfoDto: GetUserInfoDto): Promise<User> {
+        return this.userService.getUserInfo(getUserInfoDto.userId);
     }
 }

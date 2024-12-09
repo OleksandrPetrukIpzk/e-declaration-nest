@@ -37,6 +37,9 @@ export class User {
     @Column()
     password: string;
 
+    @Column({ nullable: true })
+    refreshToken: string;
+
     @BeforeInsert()
     async hashPassword() {
         this.password = await bcrypt.hash(this.password, 12);
