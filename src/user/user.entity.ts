@@ -1,47 +1,63 @@
-import {BeforeInsert, Column, Entity, PrimaryGeneratedColumn} from "typeorm";
+import {
+  BeforeInsert,
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { Clinic } from '../clinic/clinic.entity';
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn()
-    id: number;
-    @Column()
-    email: string;
+  @PrimaryGeneratedColumn()
+  id: number;
+  @Column()
+  email: string;
 
-    @Column({nullable: true})
-    firstName: string | null;
+  @Column({ nullable: true })
+  firstName: string | null;
 
-    @Column({nullable: true})
-    lastName: string | null;
+  @Column({ nullable: true })
+  lastName: string | null;
 
-    @Column({nullable: true})
-    phone?: number | null;
+  @Column({ nullable: true })
+  phone?: number | null;
 
-    @Column({nullable: true})
-    bio?: string | null;
+  @Column({ nullable: true })
+  bio?: string | null;
 
-    @Column({nullable: true})
-    address?: string | null;
+  @Column({ nullable: true })
+  address?: string | null;
 
-    @Column({nullable: true})
-    region?: string | null;
+  @Column({ nullable: true })
+  region?: string | null;
 
-    @Column({nullable: true})
-    company?: string | null;
+  @ManyToOne(() => Clinic, (clinic) => clinic.clinicAdmins)
+  clinic?: Clinic | null;
 
-    @Column()
-    role: number | null;
+  @Column()
+  role: number | null;
 
-    @Column({nullable: true})
-    profession?: string | null;
+  @Column({ nullable: true })
+  profession?: string | null;
 
-    @Column()
-    password: string;
+  @Column()
+  password: string;
 
-    @Column({ nullable: true })
-    refreshToken: string;
+  @Column({ default: true })
+  isActive: boolean;
 
-    @BeforeInsert()
-    async hashPassword() {
-        this.password = await bcrypt.hash(this.password, 12);
-    }
+  @Column({ nullable: true })
+  refreshToken: string;
+
+  @ManyToMany(() => User, (user) => user.connections)
+  @JoinTable()
+  connections?: User[] | null;
+
+  @BeforeInsert()
+  async hashPassword() {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
 }
