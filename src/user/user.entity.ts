@@ -23,7 +23,7 @@ export class User {
   lastName: string | null;
 
   @Column({ nullable: true })
-  phone?: number | null;
+  phone?: string | null;
 
   @Column({ nullable: true })
   bio?: string | null;
