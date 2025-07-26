@@ -19,10 +19,7 @@ export class Declaration {
   status: string;
 
   @Column()
-  signByPatient: string;
-
-  @Column({ nullable: true })
-  signByDoctor: string;
+  src: string;
 
   @Column({ nullable: true })
   photoByPatient: string;

@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { createProfileDto } from './create-profile.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UserRoleEnum } from './enums';
+import { UpdateUserDto } from './update-profile.dto';
 
 @Injectable()
 export class UserService {
@@ -31,6 +32,28 @@ export class UserService {
     return this.usersRepository.save(
       this.usersRepository.create(createProfileDto),
     );
+  }
+
+  async updateUser(id: number, dto: UpdateUserDto) {
+    const user = await this.usersRepository.findOneBy({ id });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    Object.assign(user, {
+      email: dto.email ?? user.email,
+      firstName: dto.firstName ?? user.firstName,
+      lastName: dto.lastName ?? user.lastName,
+      phone: dto.phone ?? user.phone,
+      bio: dto.bio ?? user.bio,
+      address: dto.address ?? user.address,
+      region: dto.region ?? user.region,
+      profession: dto.profession ?? user.profession,
+      isActive: dto.isActive ?? user.isActive,
+    });
+
+    return await this.usersRepository.save(user);
   }
 
   async loginUser(createProfileDto: createProfileDto): Promise<any | null> {
@@ -81,8 +104,11 @@ export class UserService {
     return user;
   }
 
-  async getAllProviderList(userRole: number): Promise<User[] | null> {
-    if (userRole === UserRoleEnum.Admin) {
+  async getAllProviderList(userId: number): Promise<User[] | null> {
+    const user = await this.usersRepository.find({
+      where: { isActive: true, role: UserRoleEnum.Admin, id: userId },
+    });
+    if (user) {
       const user = await this.usersRepository.find({
         where: { role: UserRoleEnum.Hospital },
       });
@@ -94,8 +120,15 @@ export class UserService {
     return null;
   }
 
-  async getActiveAdminList(userRole: number): Promise<User[] | null> {
-    if (userRole === UserRoleEnum.Hospital || userRole === UserRoleEnum.Admin) {
+  async getActiveAdminList(userId: number): Promise<User[] | null> {
+    const user = await this.usersRepository.find({
+      where: {
+        isActive: true,
+        role: UserRoleEnum.Admin || UserRoleEnum.Hospital,
+        id: userId,
+      },
+    });
+    if (user) {
       const user = await this.usersRepository.find({
         where: { isActive: true, role: UserRoleEnum.Admin },
       });
@@ -106,8 +139,15 @@ export class UserService {
     }
     return null;
   }
-  async getAllAdminList(userRole: number): Promise<User[] | null> {
-    if (userRole === UserRoleEnum.Admin) {
+  async getAllAdminList(userId: number): Promise<User[] | null> {
+    const user = await this.usersRepository.find({
+      where: {
+        isActive: true,
+        role: UserRoleEnum.Admin,
+        id: userId,
+      },
+    });
+    if (user) {
       const user = await this.usersRepository.find({
         where: { role: UserRoleEnum.Admin },
       });
