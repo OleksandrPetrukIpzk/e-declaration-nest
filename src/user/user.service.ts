@@ -107,10 +107,12 @@ export class UserService {
   async getAllProviderList(userId: number): Promise<User[] | null> {
     const user = await this.usersRepository.find({
       where: { isActive: true, role: UserRoleEnum.Admin, id: userId },
+      relations: ['clinic', 'clinicWork', 'connections'],
     });
     if (user) {
       const user = await this.usersRepository.find({
         where: { role: UserRoleEnum.Hospital },
+        relations: ['clinic', 'clinicWork', 'connections'],
       });
       if (!user) {
         return null;
@@ -127,10 +129,12 @@ export class UserService {
         role: UserRoleEnum.Admin || UserRoleEnum.Hospital,
         id: userId,
       },
+      relations: ['clinic', 'clinicWork'],
     });
     if (user) {
       const user = await this.usersRepository.find({
         where: { isActive: true, role: UserRoleEnum.Admin },
+        relations: ['clinic', 'clinicWork'],
       });
       if (!user) {
         return null;
@@ -146,10 +150,12 @@ export class UserService {
         role: UserRoleEnum.Admin,
         id: userId,
       },
+      relations: ['clinic', 'clinicWork'],
     });
     if (user) {
       const user = await this.usersRepository.find({
         where: { role: UserRoleEnum.Admin },
+        relations: ['clinic', 'clinicWork'],
       });
       if (!user) {
         return null;
@@ -197,5 +203,33 @@ export class UserService {
     await this.usersRepository.save([user, otherUser]);
 
     return { message: 'Users successfully connected' };
+  }
+  async getConnectedUsers(userId: number): Promise<User[] | null> {
+    const currentUser = await this.usersRepository.findOne({
+      where: { id: userId },
+      select: ['email'],
+    });
+
+    if (!currentUser) {
+      return null;
+    }
+
+    const connections = await this.usersRepository
+      .createQueryBuilder('user')
+      .where((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select(
+            'CASE WHEN uc.user_email = :email THEN uc.connection_email ELSE uc.user_email END',
+            'connected_email',
+          )
+          .from('user_connections_user', 'uc')
+          .where('uc.user_email = :email OR uc.connection_email = :email')
+          .getQuery();
+        return `user.email IN ${subQuery}`;
+      })
+      .setParameter('email', currentUser.email)
+      .getMany();
+    return connections;
   }
 }

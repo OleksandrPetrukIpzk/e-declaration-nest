@@ -1,6 +1,10 @@
 import {
-  Column, Entity, ManyToOne,
-  OneToMany,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../user/user.entity';
@@ -9,11 +13,14 @@ export class Clinic {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ default: true })
   isActive: boolean;
 
-  @Column()
+  @Column({ unique: true })
   clinicName: string;
+
+  @Column()
+  clinicAddress: string;
 
   @ManyToOne(() => User, (user) => user.id)
   createdBy?: User | null;
@@ -21,12 +28,45 @@ export class Clinic {
   @Column({ nullable: true })
   clinicBio?: string | null;
 
-  @Column()
-  dateOfCreate: string;
+  @CreateDateColumn({ type: 'timestamp' })
+  dateOfCreate: Date;
 
-  @OneToMany(() => User, (user) => user.clinic)
+  @ManyToMany(() => User, (user) => user.clinic)
+  @JoinTable({
+    joinColumn: {
+      name: 'clinic_name',
+      referencedColumnName: 'clinicName',
+    },
+    inverseJoinColumn: {
+      name: 'user_email',
+      referencedColumnName: 'email',
+    },
+  })
   clinicAdmins?: User[] | null;
 
-  @OneToMany(() => User, (user) => user.clinic)
+  @ManyToMany(() => User, (user) => user.clinicWork)
+  @JoinTable({
+    joinColumn: {
+      name: 'clinic_name',
+      referencedColumnName: 'clinicName',
+    },
+    inverseJoinColumn: {
+      name: 'user_email',
+      referencedColumnName: 'email',
+    },
+  })
   clinicWorkers?: User[] | null;
+
+  @ManyToMany(() => User)
+  @JoinTable({
+    joinColumn: {
+      name: 'clinic_name',
+      referencedColumnName: 'clinicName',
+    },
+    inverseJoinColumn: {
+      name: 'user_email',
+      referencedColumnName: 'email',
+    },
+  })
+  invites?: User[] | null;
 }

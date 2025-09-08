@@ -4,7 +4,6 @@ import {
   Entity,
   JoinTable,
   ManyToMany,
-  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -13,7 +12,8 @@ import { Clinic } from '../clinic/clinic.entity';
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column()
+
+  @Column({ unique: true })
   email: string;
 
   @Column({ nullable: true })
@@ -34,8 +34,11 @@ export class User {
   @Column({ nullable: true })
   region?: string | null;
 
-  @ManyToOne(() => Clinic, (clinic) => clinic.clinicAdmins)
-  clinic?: Clinic | null;
+  @ManyToMany(() => Clinic, (clinic) => clinic.clinicAdmins)
+  clinic?: Clinic[] | null;
+
+  @ManyToMany(() => Clinic, (clinic) => clinic.clinicWorkers)
+  clinicWork?: Clinic[] | null;
 
   @Column()
   role: number | null;
@@ -53,7 +56,16 @@ export class User {
   refreshToken: string;
 
   @ManyToMany(() => User, (user) => user.connections)
-  @JoinTable()
+  @JoinTable({
+    joinColumn: {
+      name: 'user_email',
+      referencedColumnName: 'email',
+    },
+    inverseJoinColumn: {
+      name: 'connection_email',
+      referencedColumnName: 'email',
+    },
+  })
   connections?: User[] | null;
 
   @BeforeInsert()
