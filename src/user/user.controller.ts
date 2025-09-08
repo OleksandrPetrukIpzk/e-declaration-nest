@@ -56,7 +56,6 @@ export class UserController {
   async getAllProviderList(
     @CurrentUser() getUserInfoDto: GetUserInfoDto,
   ): Promise<User[] | null> {
-    console.log(getUserInfoDto);
     return this.userService.getAllProviderList(getUserInfoDto.userId);
   }
   @UseGuards(JwtAuthGuard)
@@ -83,5 +82,12 @@ export class UserController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.userService.updateUser(getUserInfoDto.userId, dto);
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get('connected-users')
+  async getConnectedUsers(
+    @CurrentUser() getUserInfoDto: GetUserInfoDto,
+  ): Promise<User[] | null> {
+    return this.userService.getConnectedUsers(getUserInfoDto.userId);
   }
 }

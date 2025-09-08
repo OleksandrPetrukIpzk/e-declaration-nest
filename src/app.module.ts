@@ -5,6 +5,11 @@ import { DocumentModule } from './document/document.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
 import { JwtGlobalModule } from './jwt/jwt.module';
+import { ClinicModule } from './clinic/clinic.module';
+import { ExportToExcelModule } from './exportToExcel/exportToExcel.module';
+import { DeclarationModule } from './declaration/declaration.module';
+import { DivisionModule } from './division/division.module';
+import { LegalEntityModule } from './legalEntity/legalEntity.module';
 
 @Module({
   imports: [
@@ -22,6 +27,11 @@ import { JwtGlobalModule } from './jwt/jwt.module';
     JwtGlobalModule,
     UserModule,
     DocumentModule,
+    ClinicModule,
+    ExportToExcelModule,
+    DeclarationModule,
+    DivisionModule,
+    LegalEntityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
