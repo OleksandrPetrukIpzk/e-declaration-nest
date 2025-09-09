@@ -10,6 +10,7 @@ import { ExportToExcelModule } from './exportToExcel/exportToExcel.module';
 import { DeclarationModule } from './declaration/declaration.module';
 import { DivisionModule } from './division/division.module';
 import { LegalEntityModule } from './legalEntity/legalEntity.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { LegalEntityModule } from './legalEntity/legalEntity.module';
     DeclarationModule,
     DivisionModule,
     LegalEntityModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
