@@ -59,6 +59,7 @@ export class UserService {
   async loginUser(createProfileDto: createProfileDto): Promise<any | null> {
     const user = await this.usersRepository.findOne({
       where: { email: createProfileDto.email },
+      relations: ['clinic', 'clinicWork', 'connections'],
     });
     if (
       user &&
@@ -88,7 +89,10 @@ export class UserService {
   }
 
   async getUserInfo(userId: number): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['clinic', 'clinicWork', 'connections'],
+    });
     if (!user) {
       throw new Error('User not found');
     }
