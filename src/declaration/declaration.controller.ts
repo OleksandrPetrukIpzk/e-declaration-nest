@@ -43,19 +43,12 @@ import { JwtAuthGuard } from '../jwt/jwt.auth.guard';
 import { CurrentUser } from '../decorators/user.decorator';
 import { GetUserInfoDto } from '../user/dtos';
 
-// Assuming you have these guards, adjust imports as needed
-// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-// import { RolesGuard } from '../auth/guards/roles.guard';
-// import { Roles } from '../auth/decorators/roles.decorator';
-
 @ApiTags('declarations')
 @Controller('declarations')
-// @UseGuards(JwtAuthGuard) // Uncomment if you use JWT auth
 @ApiBearerAuth()
 export class DeclarationController {
   constructor(private readonly declarationService: DeclarationService) {}
 
-  // PATIENT ENDPOINTS
   @Post('patient/create')
   @ApiOperation({
     summary: 'Patient creates a new declaration request with minimal data',
@@ -142,7 +135,6 @@ export class DeclarationController {
     );
   }
 
-  // DOCTOR ENDPOINTS
   @UseGuards(JwtAuthGuard)
   @Get('doctor/pending-review')
   @ApiOperation({
@@ -325,7 +317,6 @@ export class DeclarationController {
     );
   }
 
-  // LEGACY ENDPOINTS (for backward compatibility)
   @Post('patient/create-legacy')
   @ApiOperation({
     summary: 'Patient creates declaration with full data (legacy)',
@@ -370,7 +361,6 @@ export class DeclarationController {
     );
   }
 
-  // COMMON ENDPOINTS (unchanged)
   @Get()
   @ApiOperation({
     summary: 'Get all declarations with pagination (admin only)',
@@ -397,7 +387,6 @@ export class DeclarationController {
     enum: DeclarationStatus,
     description: 'Filter by declaration status',
   })
-  // @Roles('admin') // Uncomment if you have role-based access
   async findAll(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
@@ -543,12 +532,10 @@ export class DeclarationController {
     description: 'Declaration ID',
     type: String,
   })
-  // @Roles('admin') // Uncomment if you have role-based access
   async remove(@Param('id') id: string): Promise<void> {
     return this.declarationService.remove(id);
   }
 
-  // STATISTICS ENDPOINTS - unchanged
   @Get('stats/overview')
   @ApiOperation({ summary: 'Get declarations overview statistics' })
   @ApiResponse({
@@ -607,10 +594,9 @@ export class DeclarationController {
     const allDeclarations = await this.declarationService.findAll(1, 1000);
     const data = allDeclarations.data;
 
-    // Calculate average processing times (example logic)
     const processingTimes = {
-      avg_review_time: 0, // Would need to track when review started/completed
-      avg_sign_time: 0, // Would need to track when sign started/completed
+      avg_review_time: 0,
+      avg_sign_time: 0,
       total_in_workflow: data.filter((d) =>
         [
           DeclarationStatus.PENDING_DOCTOR_REVIEW,

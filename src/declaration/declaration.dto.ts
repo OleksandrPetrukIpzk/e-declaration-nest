@@ -22,7 +22,6 @@ import {
   VerificationStatus,
 } from './declaration.enum';
 
-// Nested DTOs for complex objects (same as before)
 export class PhoneDto {
   @IsEnum(PhoneType)
   type: PhoneType;
@@ -102,8 +101,8 @@ export class AddressDto {
 }
 
 export class DocumentDto {
-  @IsEnum(DocumentTypes) // замість @IsString()
-  type: DocumentTypes; // Should be enum DocumentType if you have it
+  @IsEnum(DocumentTypes)
+  type: DocumentTypes;
 
   @IsString()
   @IsNotEmpty()
@@ -435,7 +434,6 @@ export class UrgentDto {
   authentication_method_current: AuthenticationMethodDto;
 }
 
-// NEW: Patient creates declaration with minimal data
 export class CreatePatientDeclarationDto {
   doctor_email: string;
 
@@ -448,7 +446,6 @@ export class CreatePatientDeclarationDto {
   person_data: PersonDataDto;
 }
 
-// NEW: Doctor completes declaration with all professional data
 export class DoctorCompleteDeclarationDto {
   @IsDateString()
   start_date: string;
@@ -485,8 +482,6 @@ export class DoctorCompleteDeclarationDto {
   @Type(() => UrgentDto)
   urgent?: UrgentDto;
 }
-
-// OLD DTOs kept for backward compatibility and other endpoints
 
 export class CreateDeclarationDto {
   @IsDateString()
@@ -634,7 +629,6 @@ export class UpdateDeclarationDto {
   urgent?: UrgentDto;
 }
 
-// NEW: Patient can only update person_data when declaration is pending
 export class UpdatePatientDeclarationDto {
   @IsOptional()
   doctor_email?: string;

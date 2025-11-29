@@ -5,6 +5,8 @@ import { Notification, NotificationType } from './notification.entity';
 import { User } from '../user/user.entity';
 import { Clinic } from '../clinic/clinic.entity';
 import { NotificationGateway } from './notification.gateway';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { EventType } from '../analytics/analytics-event.entity';
 
 export interface CreateNotificationDto {
   senderId: number;
@@ -26,6 +28,7 @@ export class NotificationService {
     @InjectRepository(Clinic)
     private clinicRepository: Repository<Clinic>,
     private notificationGateway: NotificationGateway,
+    private analyticsService: AnalyticsService,
   ) {}
 
   // Створити нотифікацію з WebSocket
@@ -60,7 +63,12 @@ export class NotificationService {
     const savedNotification =
       await this.notificationRepository.save(notification);
 
-    // Відправити через WebSocket
+    await this.analyticsService.trackNotificationEvent(
+      EventType.NOTIFICATION_SENT,
+      savedNotification.id,
+      dto.senderId,
+    );
+
     const sent = this.notificationGateway.sendNotificationToUser(
       dto.recipientId,
       savedNotification,
@@ -72,8 +80,6 @@ export class NotificationService {
 
     return savedNotification;
   }
-
-  // Відправити повідомлення користувачам з connections
   async sendMessageToConnections(
     senderId: number,
     recipientIds: number[],
@@ -81,21 +87,52 @@ export class NotificationService {
     message: string,
     metadata?: Record<string, any>,
   ): Promise<Notification[]> {
-    console.log(senderId);
+    console.log('[sendMessageToConnections] senderId:', senderId);
+    console.log('[sendMessageToConnections] recipientIds:', recipientIds);
+
     const sender = await this.userRepository.findOne({
       where: { id: senderId },
-      relations: ['connections'],
     });
 
     if (!sender) {
       throw new Error('Sender not found');
     }
 
-    // Перевіряємо чи всі отримувачі є в connections
-    const connectedUserIds = sender.connections?.map((user) => user.id) || [];
-    const validRecipientIds = recipientIds.filter((id) =>
-      connectedUserIds.includes(id),
+    console.log('[sendMessageToConnections] sender:', sender.email);
+
+    const validRecipients = await this.userRepository.query(
+      `SELECT DISTINCT u.id
+       FROM "user" u
+       WHERE u.id = ANY($1::int[])
+       AND (
+         EXISTS (
+           SELECT 1 FROM user_connections_user
+           WHERE user_email = $2 AND connection_email = u.email
+         )
+         OR EXISTS (
+           SELECT 1 FROM user_connections_user
+           WHERE user_email = u.email AND connection_email = $2
+         )
+       )`,
+      [recipientIds, sender.email],
     );
+
+    const validRecipientIds = validRecipients.map((r) => r.id);
+    console.log(
+      '[sendMessageToConnections] validRecipientIds:',
+      validRecipientIds,
+    );
+
+    const invalidRecipientIds = recipientIds.filter(
+      (id) => !validRecipientIds.includes(id),
+    );
+
+    if (invalidRecipientIds.length > 0) {
+      console.warn(
+        '[sendMessageToConnections] WARNING: Some recipients are not in connections:',
+        invalidRecipientIds,
+      );
+    }
 
     const notifications: Notification[] = [];
 
@@ -109,12 +146,19 @@ export class NotificationService {
         metadata,
       });
       notifications.push(notification);
+      console.log(
+        '[sendMessageToConnections] Notification created:',
+        notification.id,
+      );
     }
 
+    console.log(
+      '[sendMessageToConnections] Total notifications created:',
+      notifications.length,
+    );
     return notifications;
   }
 
-  // Відправити повідомлення всім адмінам клініки
   async sendMessageToClinicAdmins(
     senderId: number,
     clinicId: number,
@@ -131,7 +175,6 @@ export class NotificationService {
       throw new Error('Clinic not found');
     }
 
-    // Перевіряємо чи відправник має доступ до клініки
     const sender = await this.userRepository.findOne({
       where: { id: senderId },
       relations: ['clinic', 'clinicWork'],
@@ -149,7 +192,6 @@ export class NotificationService {
 
     for (const admin of clinic.clinicAdmins || []) {
       if (admin.id !== senderId) {
-        // Не відправляємо самому собі
         const notification = await this.createNotification({
           senderId,
           recipientId: admin.id,
@@ -166,7 +208,6 @@ export class NotificationService {
     return notifications;
   }
 
-  // Інші методи з WebSocket підтримкою
   async markAsRead(notificationId: number, userId: number): Promise<boolean> {
     const result = await this.notificationRepository.update(
       {
@@ -177,7 +218,11 @@ export class NotificationService {
     );
 
     if (result.affected > 0) {
-      // Повідомити через WebSocket
+      await this.analyticsService.trackNotificationEvent(
+        EventType.NOTIFICATION_READ,
+        notificationId,
+        userId,
+      );
       this.notificationGateway.notifyNotificationRead(userId, notificationId);
       return true;
     }
@@ -203,7 +248,6 @@ export class NotificationService {
     return false;
   }
 
-  // Отримати всі нотифікації користувача
   async getUserNotifications(
     userId: number,
     limit: number = 20,

@@ -132,4 +132,12 @@ export class ClinicController {
     }
     return clinic;
   }
+  @UseGuards(JwtAuthGuard)
+  @Post('/leave')
+  leaveClinic(
+    @Body('clinicId') clinicId: number,
+    @CurrentUser() getUserInfoDto: GetUserInfoDto,
+  ): Promise<Clinic> {
+    return this.clinicService.leaveClinic(clinicId, getUserInfoDto.userId);
+  }
 }

@@ -1,5 +1,10 @@
-// src/dto/legal-entity.dto.ts
-import { IsString, IsEmail, ValidateNested, IsArray, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  ValidateNested,
+  IsArray,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { PhoneType } from '../declaration/declaration.enum';

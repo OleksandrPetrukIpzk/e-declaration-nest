@@ -11,7 +11,8 @@ import {
 import {
   DeclarationStatus,
   DivisionStatus,
-  DivisionType, DocumentTypes,
+  DivisionType,
+  DocumentTypes,
   EmployeeStatus,
   EmployeeType,
   Gender,
@@ -28,7 +29,6 @@ export class Declaration {
   @Column({ unique: true })
   declaration_number: string;
 
-  // These fields are now optional at creation - filled by doctor
   @Column({ nullable: true })
   @IsDateString()
   start_date?: string;
@@ -41,7 +41,6 @@ export class Declaration {
   @IsDateString()
   signed_at?: string | null;
 
-  // Patient information - always present
   @Column()
   patient_email: string;
 
@@ -49,7 +48,6 @@ export class Declaration {
   @JoinColumn({ name: 'patient_email', referencedColumnName: 'email' })
   patient: User;
 
-  // Doctor information - always present
   @Column()
   doctor_email: string;
 
@@ -73,14 +71,12 @@ export class Declaration {
   @UpdateDateColumn()
   updated_at: Date;
 
-  // These fields are now optional at creation - filled by doctor
   @Column({ nullable: true })
   reason?: string;
 
   @Column({ nullable: true })
   reason_description?: string;
 
-  // Person data - always present (filled by patient)
   @Column('json')
   person_data: {
     first_name: string;
@@ -126,7 +122,6 @@ export class Declaration {
     }[];
   };
 
-  // Employee data - optional at creation, filled by doctor
   @Column('json', { nullable: true })
   employee_data?: {
     position: string;
@@ -142,7 +137,6 @@ export class Declaration {
     };
   };
 
-  // Division data - optional at creation, filled by doctor
   @Column('json', { nullable: true })
   division_data?: {
     name: string;
@@ -153,7 +147,6 @@ export class Declaration {
     dls_verified: boolean;
   };
 
-  // Legal Entity data - optional at creation, filled by doctor
   @Column('json', { nullable: true })
   legal_entity_data?: {
     name: string;
@@ -183,7 +176,6 @@ export class Declaration {
     }[];
   };
 
-  // Doctor data - optional at creation, filled by doctor
   @Column('json', { nullable: true })
   doctor_data?: {
     educations: {
@@ -225,7 +217,6 @@ export class Declaration {
     };
   };
 
-  // Urgent data - optional
   @Column('json', { nullable: true })
   urgent?: {
     authentication_method_current: {

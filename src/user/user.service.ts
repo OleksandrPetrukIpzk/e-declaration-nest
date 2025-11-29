@@ -177,7 +177,6 @@ export class UserService {
       where: { id: userId },
       relations: ['connections'],
     });
-
     const otherUser = await this.usersRepository.findOne({
       where: { id: otherUserId },
       relations: ['connections'],
@@ -187,24 +186,25 @@ export class UserService {
       throw new NotFoundException('One or both users not found');
     }
 
-    // 1. Перевірка: користувачі вже пов’язані
-    const alreadyConnected = user.connections.some(
+    const alreadyConnectedFromUser = user.connections?.some(
       (conn) => Number(conn.id) === Number(otherUser.id),
     );
-    if (alreadyConnected) {
+    const alreadyConnectedFromOther = otherUser.connections?.some(
+      (conn) => Number(conn.id) === Number(user.id),
+    );
+
+    if (alreadyConnectedFromUser || alreadyConnectedFromOther) {
       throw new BadRequestException('Users already connected');
     }
-
-    // 2. Перевірка: otherUser вже має хоча б один connection
-    if (otherUser.connections.length > 0) {
-      throw new BadRequestException('Target user already has a connection');
-    }
-
-    // Додаємо один одного
-    user.connections.push(otherUser);
-    otherUser.connections.push(user);
-
-    await this.usersRepository.save([user, otherUser]);
+    await this.usersRepository
+      .createQueryBuilder()
+      .insert()
+      .into('user_connections_user')
+      .values({
+        user_email: user.email,
+        connection_email: otherUser.email,
+      })
+      .execute();
 
     return { message: 'Users successfully connected' };
   }

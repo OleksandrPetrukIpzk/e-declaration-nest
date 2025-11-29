@@ -35,8 +35,6 @@ export class ExportToExcelController {
     if (!csvFile) {
       throw new BadRequestException('CSV file is required');
     }
-
-    // Парсимо конфігурацію з body
     let config: ExportToExcelConfigDto;
     try {
       config = {
@@ -54,19 +52,14 @@ export class ExportToExcelController {
     }
 
     try {
-      // Парсимо CSV файл
       const csvData = await this.exportToExcelService.parseCsvFile(
         csvFile.buffer,
       );
-
-      // Валідуємо поля в CSV файлі
       await this.exportToExcelService.validateTableFields(
         config.tableName,
         config.fields,
         csvData,
       );
-
-      // Створюємо Excel файл з даними з CSV
       const excelBuffer = await this.exportToExcelService.createExcelFromCsv(
         csvData,
         config.tableName,

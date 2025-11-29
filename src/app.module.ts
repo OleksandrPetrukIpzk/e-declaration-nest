@@ -11,6 +11,7 @@ import { DeclarationModule } from './declaration/declaration.module';
 import { DivisionModule } from './division/division.module';
 import { LegalEntityModule } from './legalEntity/legalEntity.module';
 import { NotificationModule } from './notification/notification.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { NotificationModule } from './notification/notification.module';
     DivisionModule,
     LegalEntityModule,
     NotificationModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

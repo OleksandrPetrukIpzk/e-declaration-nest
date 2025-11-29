@@ -11,6 +11,8 @@ import { CreateDivisionDto } from '../division/division.dto';
 import { Division } from '../division/division.entity';
 import { LegalEntity } from '../legalEntity/lagalEntity.entity';
 import { CreateLegalEntityDto } from '../legalEntity/legalEntity.dto';
+import { Declaration } from '../declaration/declaration.entity';
+import { DeclarationStatus } from '../declaration/declaration.enum';
 
 @Injectable()
 export class ExportToExcelService {
@@ -24,6 +26,8 @@ export class ExportToExcelService {
     private divisionRepository: Repository<Division>,
     @InjectRepository(LegalEntity)
     private legalEntityRepository: Repository<LegalEntity>,
+    @InjectRepository(Declaration)
+    private declarationRepository: Repository<Declaration>,
   ) {}
 
   async parseCsvFile(csvBuffer: Buffer): Promise<any[]> {
@@ -408,7 +412,9 @@ export class ExportToExcelService {
         if (!user.clinicWork) user.clinicWork = null;
         if (!clinic.clinicWorkers) clinic.clinicWorkers = [];
 
-        const existsWorker = user.clinicWork.some((clinicWork) => clinicWork.id === clinic.id);
+        const existsWorker = user.clinicWork.some(
+          (clinicWork) => clinicWork.id === clinic.id,
+        );
         if (!existsWorker) {
           user.clinicWork.push(clinic);
           clinic.clinicWorkers.push(user);
@@ -585,6 +591,88 @@ export class ExportToExcelService {
     }
     return Array.isArray(addressesData) ? addressesData : [];
   }
+
+  private parseJsonField(data: any): any {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch {
+        return null;
+      }
+    }
+    return data;
+  }
+
+  private async importDeclarations(worksheet: XLSX.WorkSheet) {
+    const data = XLSX.utils.sheet_to_json(worksheet) as any[];
+    const declarations: Declaration[] = [];
+
+    for (const row of data) {
+      try {
+        const patient = await this.userRepository.findOne({
+          where: { email: row.patient_email || row['Patient Email'] },
+        });
+
+        const doctor = await this.userRepository.findOne({
+          where: { email: row.doctor_email || row['Doctor Email'] },
+        });
+
+        if (!patient || !doctor) {
+          console.error(
+            `Skipping declaration: patient or doctor not found for emails ${row.patient_email} / ${row.doctor_email}`,
+          );
+          continue;
+        }
+
+        const declaration = this.declarationRepository.create({
+          declaration_number:
+            row.declaration_number || row['Declaration Number'],
+          start_date: row.start_date || row['Start Date'],
+          end_date: row.end_date || row['End Date'],
+          signed_at: row.signed_at || row['Signed At'],
+          patient_email: patient.email,
+          doctor_email: doctor.email,
+          status:
+            row.status ||
+            row['Status'] ||
+            DeclarationStatus.PENDING_DOCTOR_REVIEW,
+          scope: row.scope || row['Scope'] || '',
+          declaration_request_id:
+            row.declaration_request_id || row['Declaration Request ID'] || '',
+          reason: row.reason || row['Reason'],
+          reason_description:
+            row.reason_description || row['Reason Description'],
+          person_data: this.parseJsonField(
+            row.person_data || row['Person Data'],
+          ),
+          employee_data: this.parseJsonField(
+            row.employee_data || row['Employee Data'],
+          ),
+          division_data: this.parseJsonField(
+            row.division_data || row['Division Data'],
+          ),
+          legal_entity_data: this.parseJsonField(
+            row.legal_entity_data || row['Legal Entity Data'],
+          ),
+          doctor_data: this.parseJsonField(
+            row.doctor_data || row['Doctor Data'],
+          ),
+          urgent: this.parseJsonField(row.urgent || row['Urgent']),
+        });
+
+        declarations.push(declaration);
+      } catch (error) {
+        console.error(`Error importing declaration: ${error.message}`, row);
+      }
+    }
+
+    if (declarations.length > 0) {
+      await this.declarationRepository.save(declarations);
+    }
+
+    return declarations;
+  }
+
   async importFromExcel(file: Express.Multer.File) {
     const workbook = XLSX.read(file.buffer);
 
@@ -610,6 +698,9 @@ export class ExportToExcelService {
     }
     if (workbook.SheetNames.includes('legalEntity')) {
       await this.importLegalEntity(workbook.Sheets['legalEntity']);
+    }
+    if (workbook.SheetNames.includes('declarations')) {
+      await this.importDeclarations(workbook.Sheets['declarations']);
     }
   }
   async importFromExcelByService(file: Express.Multer.File) {

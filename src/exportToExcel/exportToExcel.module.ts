@@ -7,10 +7,11 @@ import { User } from '../user/user.entity';
 import { Clinic } from '../clinic/clinic.entity';
 import { Division } from '../division/division.entity';
 import { LegalEntity } from '../legalEntity/lagalEntity.entity';
+import { Declaration } from '../declaration/declaration.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Clinic, Division, LegalEntity]),
+    TypeOrmModule.forFeature([User, Clinic, Division, LegalEntity, Declaration]),
     MulterModule.register({
       limits: {
         fileSize: 10 * 1024 * 1024, // 10MB

@@ -14,18 +14,13 @@ import { JwtAuthGuard } from '../jwt/jwt.auth.guard';
 import { CurrentUser } from '../decorators/user.decorator';
 import { GetUserInfoDto } from '../user/dtos';
 
-export interface SendMessageDto {
-  recipientIds: number[];
-  title: string;
-  message: string;
-  metadata?: Record<string, any>;
-}
+type TargetUsers = 'admins' | 'workers' | 'all';
 
 export interface SendClinicMessageDto {
   clinicId: number;
   title: string;
   message: string;
-  target: 'admins' | 'workers' | 'all';
+  target: TargetUsers;
   metadata?: Record<string, any>;
 }
 

@@ -47,7 +47,6 @@ export class DeclarationService {
     private divisionRepository: Repository<Division>,
   ) {}
 
-  // NEW: Patient creates declaration request with minimal data
   async createByPatient(
     createPatientDeclarationDto: CreatePatientDeclarationDto,
     patientId: number,
@@ -55,7 +54,6 @@ export class DeclarationService {
     const user = await this.userRepository.findOne({
       where: { id: patientId },
     });
-    // Validate that patient exists
     const patient = await this.userRepository.findOne({
       where: { email: user.email },
     });
@@ -63,7 +61,6 @@ export class DeclarationService {
       throw new NotFoundException('Patient not found');
     }
 
-    // Validate that doctor exists
     const doctor = await this.userRepository.findOne({
       where: { email: createPatientDeclarationDto.doctor_email },
     });
@@ -71,7 +68,6 @@ export class DeclarationService {
       throw new NotFoundException('Doctor not found');
     }
 
-    // Generate declaration number
     const declarationNumber = this.generateDeclarationNumber();
     console.log(createPatientDeclarationDto);
     const declaration = this.declarationRepository.create({
@@ -83,7 +79,6 @@ export class DeclarationService {
       declaration_request_id:
         createPatientDeclarationDto.declaration_request_id,
       person_data: createPatientDeclarationDto.person_data,
-      // All other fields will be null/undefined until doctor completes them
       start_date: null,
       end_date: null,
       reason: null,
@@ -99,7 +94,6 @@ export class DeclarationService {
     return await this.declarationRepository.save(declaration);
   }
 
-  // NEW: Doctor completes declaration with all professional data
   async completeByDoctor(
     id: string,
     doctorCompleteDto: DoctorCompleteDeclarationDto,
@@ -110,19 +104,16 @@ export class DeclarationService {
       where: { isActive: true, role: UserRoleEnum.Hospital, id: userId },
     });
 
-    // Check if this doctor is assigned to this declaration
     if (declaration.doctor_email !== user.email) {
       throw new ForbiddenException(
         'You are not authorized to complete this declaration',
       );
     }
 
-    // Check if declaration is in correct status
     if (declaration.status !== DeclarationStatus.PENDING_DOCTOR_REVIEW) {
       throw new BadRequestException('Declaration is not in review status');
     }
 
-    // Validate that all required data is complete
     if (
       !doctorCompleteDto.start_date ||
       !doctorCompleteDto.end_date ||
@@ -133,7 +124,6 @@ export class DeclarationService {
       );
     }
 
-    // Update declaration with all doctor's data
     Object.assign(declaration, {
       start_date: doctorCompleteDto.start_date,
       end_date: doctorCompleteDto.end_date,
@@ -150,7 +140,6 @@ export class DeclarationService {
     return await this.declarationRepository.save(declaration);
   }
 
-  // UPDATED: Doctor reviews and adds/updates their data (backward compatibility)
   async reviewByDoctor(
     id: string,
     doctorReviewDto: DoctorReviewDto,
@@ -160,19 +149,16 @@ export class DeclarationService {
     const user = await this.userRepository.findOne({
       where: { isActive: true, id: userId },
     });
-    // Check if this doctor is assigned to this declaration
     if (declaration.doctor_email !== user.email) {
       throw new ForbiddenException(
         'You are not authorized to review this declaration',
       );
     }
 
-    // Check if declaration is in correct status
     if (declaration.status !== DeclarationStatus.PENDING_DOCTOR_REVIEW) {
       throw new BadRequestException('Declaration is not in review status');
     }
 
-    // Update declaration with doctor's data and review
     Object.assign(declaration, {
       ...doctorReviewDto,
       status: DeclarationStatus.PENDING_DOCTOR_SIGN,
@@ -181,7 +167,6 @@ export class DeclarationService {
     return await this.declarationRepository.save(declaration);
   }
 
-  // Doctor signs declaration making it active
   async signByDoctor(
     id: string,
     doctorSignDto: DoctorSignDto,
@@ -191,56 +176,36 @@ export class DeclarationService {
     const user = await this.userRepository.findOne({
       where: { isActive: true, role: UserRoleEnum.Hospital, id: userId },
     });
-    // Check if this doctor is assigned to this declaration
     if (declaration.doctor_email !== user.email) {
       throw new ForbiddenException(
         'You are not authorized to sign this declaration',
       );
     }
-
-    // Check if declaration is in correct status
     if (declaration.status !== DeclarationStatus.PENDING_DOCTOR_SIGN) {
       throw new BadRequestException('Declaration is not ready for signing');
     }
 
-    // Validate that all required data is present before signing
-    if (
-      !declaration.start_date ||
-      !declaration.end_date ||
-      !declaration.reason
-    ) {
+    if (!declaration.start_date || !declaration.end_date) {
       throw new BadRequestException(
         'Declaration is incomplete. Start date, end date, and reason are required before signing.',
       );
     }
-
-    if (
-      !declaration.employee_data ||
-      !declaration.division_data ||
-      !declaration.legal_entity_data
-    ) {
-      throw new BadRequestException(
-        'Declaration is incomplete. Employee, division, and legal entity data are required before signing.',
-      );
-    }
-
-    if (!declaration.doctor_data) {
-      throw new BadRequestException(
-        'Declaration is incomplete. Doctor data is required before signing.',
-      );
-    }
-
-    // Sign declaration
     declaration.signed_at = new Date().toISOString();
     declaration.status = DeclarationStatus.ACTIVE;
     if (doctorSignDto.reason_description) {
       declaration.reason_description = doctorSignDto.reason_description;
     }
 
-    return await this.declarationRepository.save(declaration);
+    const savedDeclaration = await this.declarationRepository.save(declaration);
+
+    await this.createUserConnection(
+      declaration.doctor_email,
+      declaration.patient_email,
+    );
+
+    return savedDeclaration;
   }
 
-  // Doctor rejects declaration
   async rejectByDoctor(
     id: string,
     reason: string,
@@ -250,12 +215,10 @@ export class DeclarationService {
       where: { isActive: true, role: UserRoleEnum.Hospital, id: userId },
     });
     const declaration = await this.findOne(id);
-    // Check if this doctor is assigned to this declaration
     if (declaration.doctor_email !== user.email) {
       throw new ForbiddenException('It is not your declaration');
     }
 
-    // Check if declaration can be rejected
     if (
       ![
         DeclarationStatus.PENDING_DOCTOR_REVIEW,
@@ -271,7 +234,13 @@ export class DeclarationService {
     declaration.reason = reason;
     declaration.end_date = new Date().toISOString();
 
-    return await this.declarationRepository.save(declaration);
+    const savedDeclaration = await this.declarationRepository.save(declaration);
+    await this.removeUserConnections(
+      declaration.patient_email,
+      declaration.doctor_email,
+    );
+
+    return savedDeclaration;
   }
 
   async findAll(page: number = 1, limit: number = 10) {
@@ -306,7 +275,6 @@ export class DeclarationService {
     return declaration;
   }
 
-  // UPDATED: Patient can only update their own pending declaration with limited fields
   async updateByPatient(
     id: string,
     updatePatientDeclarationDto: UpdatePatientDeclarationDto,
@@ -316,21 +284,17 @@ export class DeclarationService {
     const user = await this.userRepository.findOne({
       where: { isActive: true, id: userId },
     });
-    // Check if this patient owns this declaration
     if (declaration.patient_email !== user.email) {
       throw new ForbiddenException('You can only update your own declarations');
     }
 
-    // Check if declaration can be updated
     if (declaration.status !== DeclarationStatus.PENDING_DOCTOR_REVIEW) {
       throw new BadRequestException(
         'Declaration cannot be updated in current status',
       );
     }
 
-    // Patient can only update limited fields
     if (updatePatientDeclarationDto.doctor_email) {
-      // Validate that new doctor exists
       const doctor = await this.userRepository.findOne({
         where: { email: updatePatientDeclarationDto.doctor_email },
       });
@@ -370,14 +334,12 @@ export class DeclarationService {
     const user = await this.userRepository.findOne({
       where: { isActive: true, id: userId },
     });
-    // Only active declarations can be terminated
     if (declaration.status !== DeclarationStatus.ACTIVE) {
       throw new BadRequestException(
         'Only active declarations can be terminated',
       );
     }
 
-    // Check if user is authorized (patient or doctor)
     if (
       declaration.patient_email !== user.email &&
       declaration.doctor_email !== user.email
@@ -391,13 +353,18 @@ export class DeclarationService {
     declaration.reason = reason;
     declaration.end_date = new Date().toISOString();
 
-    return await this.declarationRepository.save(declaration);
+    const savedDeclaration = await this.declarationRepository.save(declaration);
+    await this.removeUserConnections(
+      declaration.patient_email,
+      declaration.doctor_email,
+    );
+
+    return savedDeclaration;
   }
 
-  // Get declarations pending doctor's review
   async findPendingReviewByDoctor(userId: number): Promise<Declaration[]> {
     const user = await this.userRepository.findOne({
-      where: { isActive: true, id: userId },
+      where: { id: userId },
     });
     return await this.declarationRepository.find({
       where: {
@@ -409,7 +376,6 @@ export class DeclarationService {
     });
   }
 
-  // Get declarations pending doctor's signature
   async findPendingSignByDoctor(userId: number): Promise<Declaration[]> {
     const user = await this.userRepository.findOne({
       where: { isActive: true, id: userId },
@@ -426,7 +392,7 @@ export class DeclarationService {
 
   async findByPatient(userId: number): Promise<Declaration[]> {
     const user = await this.userRepository.findOne({
-      where: { isActive: true, id: userId },
+      where: { id: userId },
     });
     return await this.declarationRepository.find({
       where: { patient_email: user.email },
@@ -548,12 +514,10 @@ export class DeclarationService {
     return `DCL-${timestamp.slice(-6)}-${random}`;
   }
 
-  // LEGACY: Keep old createByPatient for backward compatibility if needed
   async createByPatientLegacy(
     createDeclarationDto: CreateDeclarationDto,
     patientId: number,
   ): Promise<Declaration> {
-    // Validate that patient exists
     const patient = await this.userRepository.findOne({
       where: { id: patientId },
     });
@@ -561,7 +525,6 @@ export class DeclarationService {
       throw new NotFoundException('Patient not found');
     }
 
-    // Validate that doctor exists
     const doctor = await this.userRepository.findOne({
       where: { email: createDeclarationDto.doctor_email },
     });
@@ -569,7 +532,6 @@ export class DeclarationService {
       throw new NotFoundException('Doctor not found');
     }
 
-    // Generate declaration number
     const declarationNumber = this.generateDeclarationNumber();
 
     const declaration = this.declarationRepository.create({
@@ -578,14 +540,12 @@ export class DeclarationService {
       declaration_number: declarationNumber,
       status: DeclarationStatus.PENDING_DOCTOR_REVIEW,
       signed_at: new Date().toISOString(),
-      // Doctor data will be empty until doctor fills it
       doctor_data: null,
     });
 
     return await this.declarationRepository.save(declaration);
   }
 
-  // LEGACY: Keep old updateByPatient for backward compatibility if needed
   async updateByPatientLegacy(
     id: string,
     updateDeclarationDto: UpdateDeclarationDto,
@@ -596,12 +556,10 @@ export class DeclarationService {
     });
     const declaration = await this.findOne(id);
 
-    // Check if this patient owns this declaration
     if (declaration.patient_email !== user.email) {
       throw new ForbiddenException('You can only update your own declarations');
     }
 
-    // Check if declaration can be updated
     if (declaration.status !== DeclarationStatus.PENDING_DOCTOR_REVIEW) {
       throw new BadRequestException(
         'Declaration cannot be updated in current status',
@@ -627,7 +585,6 @@ export class DeclarationService {
 
     const doctorsWithSlots = await Promise.all(
       doctors.map(async (doctor) => {
-        // Рахуємо активні декларації цього лікаря
         const activeDeclarations = await this.declarationRepository.count({
           where: {
             doctor_email: doctor.email,
@@ -635,7 +592,6 @@ export class DeclarationService {
           },
         });
 
-        // Формуємо повне ім'я
         const name =
           [doctor.lastName, doctor.firstName].filter(Boolean).join(' ') ||
           doctor.email;
@@ -653,7 +609,6 @@ export class DeclarationService {
       }),
     );
 
-    // Сортуємо за доступними місцями (більше місць = вище)
     return doctorsWithSlots.sort(
       (a, b) => b.available_slots - a.available_slots,
     );
@@ -1468,5 +1423,79 @@ export class DeclarationService {
       [DivisionStatus.INACTIVE]: 'Неактивний',
     };
     return statusMap[status] || status;
+  }
+
+  private async createUserConnection(
+    doctorEmail: string,
+    patientEmail: string,
+  ): Promise<void> {
+    try {
+      await this.userRepository.query(
+        `INSERT INTO user_connections_user (user_email, connection_email)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [doctorEmail, patientEmail],
+      );
+    } catch (error) {
+      console.error(
+        `Помилка при створенні зв'язку ${doctorEmail} <-> ${patientEmail}:`,
+        error.message,
+      );
+    }
+  }
+
+  private async removeUserConnections(
+    patientEmail: string,
+    doctorEmail: string,
+  ): Promise<void> {
+    try {
+      console.log(
+        `Видалення зв'язку: doctor=${doctorEmail}, patient=${patientEmail}`,
+      );
+      const allConnectionsForDoctor = await this.userRepository.query(
+        `SELECT * FROM user_connections_user WHERE user_email = $1`,
+        [doctorEmail],
+      );
+      console.log(
+        `Всі зв'язки лікаря ${doctorEmail}:`,
+        allConnectionsForDoctor,
+      );
+
+      const allConnectionsForPatient = await this.userRepository.query(
+        `SELECT * FROM user_connections_user WHERE user_email = $1`,
+        [patientEmail],
+      );
+      console.log(
+        `Всі зв'язки пацієнта ${patientEmail}:`,
+        allConnectionsForPatient,
+      );
+      const before = await this.userRepository.query(
+        `SELECT * FROM user_connections_user
+         WHERE (user_email = $1 AND connection_email = $2)
+            OR (user_email = $2 AND connection_email = $1)`,
+        [doctorEmail, patientEmail],
+      );
+      console.log(`Знайдено записів перед видаленням:`, before);
+      const result = await this.userRepository.query(
+        `DELETE FROM user_connections_user
+         WHERE (user_email = $1 AND connection_email = $2)
+            OR (user_email = $2 AND connection_email = $1)`,
+        [doctorEmail, patientEmail],
+      );
+
+      console.log(`Видалено записів: ${result[1]}`);
+      const after = await this.userRepository.query(
+        `SELECT * FROM user_connections_user
+         WHERE (user_email = $1 AND connection_email = $2)
+            OR (user_email = $2 AND connection_email = $1)`,
+        [doctorEmail, patientEmail],
+      );
+      console.log(`Залишилось записів після видалення:`, after);
+    } catch (error) {
+      console.error(
+        `Помилка при видаленні зв'язку ${doctorEmail} <-> ${patientEmail}:`,
+        error.message,
+      );
+    }
   }
 }

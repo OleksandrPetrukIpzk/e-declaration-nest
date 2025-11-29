@@ -1,4 +1,3 @@
-// src/services/division.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -7,7 +6,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere } from 'typeorm';
 import { Division } from './division.entity';
-import { CreateDivisionDto, DivisionSearchDto, UpdateDivisionDto } from './division.dto';
+import {
+  CreateDivisionDto,
+  DivisionSearchDto,
+  UpdateDivisionDto,
+} from './division.dto';
 
 @Injectable()
 export class DivisionService {

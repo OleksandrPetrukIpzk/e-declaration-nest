@@ -70,9 +70,9 @@ export class UserController {
   @Post('connect-users')
   async connectUsers(
     @CurrentUser() getUserInfoDto: GetUserInfoDto,
-    userId: number,
+    @Body() body: { userId: number },
   ): Promise<{ message: string }> {
-    return this.userService.connectUsers(getUserInfoDto.userId, userId);
+    return this.userService.connectUsers(getUserInfoDto.userId, body.userId);
   }
 
   @UseGuards(JwtAuthGuard)

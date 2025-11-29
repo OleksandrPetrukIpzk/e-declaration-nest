@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -255,5 +254,34 @@ export class ClinicService {
         lastName: admin.lastName,
       })),
     };
+  }
+
+  async leaveClinic(clinicId: number, userId: number): Promise<Clinic> {
+    const clinic = await this.clinicRepository.findOne({
+      where: { id: clinicId },
+      relations: ['clinicAdmins', 'createdBy'],
+    });
+
+    if (!clinic) throw new NotFoundException('Clinic not found');
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId, role: UserRoleEnum.Admin },
+    });
+    if (!user) throw new NotFoundException('User not found or not an admin');
+
+    if (clinic.createdBy.id === userId) {
+      throw new ForbiddenException('Clinic creator cannot leave the clinic');
+    }
+
+    const isAdmin = clinic.clinicAdmins?.some((admin) => admin.id === userId);
+    if (!isAdmin) {
+      throw new ForbiddenException('You are not an admin of this clinic');
+    }
+
+    clinic.clinicAdmins = clinic.clinicAdmins.filter(
+      (admin) => admin.id !== userId,
+    );
+
+    return this.clinicRepository.save(clinic);
   }
 }

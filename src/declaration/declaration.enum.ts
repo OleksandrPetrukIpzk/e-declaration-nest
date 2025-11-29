@@ -6,12 +6,6 @@ export enum DeclarationStatus {
   REJECTED = 'rejected',
 }
 
-export enum DeclarationScope {
-  FAMILY_DOCTOR = 'family_doctor',
-  SPECIALIST = 'specialist',
-  EMERGENCY = 'emergency',
-}
-
 export enum DivisionStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
